@@ -34,33 +34,8 @@ static uint32_t stm32f103_calculate_pll_freq(void) {
     return pll_input * pllmul;
 }
 
-uint32_t stm32f103_get_sysclk_hz(void) {
-    if (clock_cache.cached) {
-        return clock_cache.sysclk_hz;
-    }
-    
-    // Read system clock source from RCC_CFGR (bits 3:2)
-    uint32_t sws = (RCC_CFGR >> 2) & 0x3;
-    
-    uint32_t sysclk;
-    switch (sws) {
-        case 0: // HSI
-            sysclk = STM32F103_HSI_FREQ_HZ;
-            break;
-        case 1: // HSE - assume 8MHz external crystal (Blue Pill)
-            sysclk = STM32F103_HSI_FREQ_HZ; // Same as HSI for typical boards
-            break;
-        case 2: // PLL
-            sysclk = stm32f103_calculate_pll_freq();
-            break;
-        default:
-            sysclk = STM32F103_HSI_FREQ_HZ; // Default to HSI
-            break;
-    }
-    
-    clock_cache.sysclk_hz = sysclk;
-    return sysclk;
-}
+// Use external implementation from stm32f103_helpers.c
+extern uint32_t stm32f103_get_sysclk_hz(void);
 
 uint32_t stm32f103_get_ahb_hz(void) {
     if (clock_cache.cached) {
