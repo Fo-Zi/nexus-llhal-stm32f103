@@ -499,4 +499,11 @@
 #define STM32F103_MAX_APB1_HZ                36000000UL /*!< Maximum APB1 Clock frequency in Hz */
 #define STM32F103_MAX_APB2_HZ                72000000UL /*!< Maximum APB2 Clock frequency in Hz */
 
+/*==============================================================================
+ * RCC Register Offsets (for peripheral clock control)
+ *============================================================================*/
+#define RCC_APB2ENR_OFFSET    0x18  /*!< APB2 peripheral clock enable register offset */
+#define RCC_APB1ENR_OFFSET    0x1C  /*!< APB1 peripheral clock enable register offset */
+#define RCC_AHBENR_OFFSET     0x14  /*!< AHB peripheral clock enable register offset */
+
 #endif /* STM32F103_REGISTERS_H */

@@ -311,9 +311,4 @@ int stm32f103_enable_peripheral_clock(uint32_t rcc_register_offset, uint32_t ena
  */
 int stm32f103_disable_peripheral_clock(uint32_t rcc_register_offset, uint32_t enable_bit);
 
-// Common RCC register offsets
-#define RCC_APB2ENR_OFFSET    0x18
-#define RCC_APB1ENR_OFFSET    0x1C
-#define RCC_AHBENR_OFFSET     0x14
-
 #endif /* STM32F103_CLOCK_H */
