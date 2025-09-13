@@ -7,37 +7,7 @@
 #include "stm32f103_helpers.h"
 #include "internal/stm32f103_internal.h"
 
-// STM32F103 EXTI and AFIO register definitions
-#define AFIO_BASE         (0x40010000UL)
-#define AFIO_EXTICR1      (*(volatile uint32_t*)(AFIO_BASE + 0x08))
-#define AFIO_EXTICR2      (*(volatile uint32_t*)(AFIO_BASE + 0x0C))
-#define AFIO_EXTICR3      (*(volatile uint32_t*)(AFIO_BASE + 0x10))
-#define AFIO_EXTICR4      (*(volatile uint32_t*)(AFIO_BASE + 0x14))
-
-#define EXTI_BASE         (0x40010400UL)
-#define EXTI_IMR          (*(volatile uint32_t*)(EXTI_BASE + 0x00))
-#define EXTI_RTSR         (*(volatile uint32_t*)(EXTI_BASE + 0x08))
-#define EXTI_FTSR         (*(volatile uint32_t*)(EXTI_BASE + 0x0C))
-#define EXTI_PR           (*(volatile uint32_t*)(EXTI_BASE + 0x14))
-
-// EXTI IRQ Numbers for STM32F103
-typedef enum {
-    EXTI0_IRQn         = 6,
-    EXTI1_IRQn         = 7,
-    EXTI2_IRQn         = 8,
-    EXTI3_IRQn         = 9,
-    EXTI4_IRQn         = 10,
-    EXTI9_5_IRQn       = 23,
-    EXTI15_10_IRQn     = 40,
-} IRQn_Type;
-
-// NVIC Enable macro
-#define NVIC_EnableIRQ(IRQn)  do { \
-    volatile uint32_t *nvic_iser = (volatile uint32_t*)0xE000E100UL; \
-    if ((int32_t)(IRQn) >= 0) { \
-        nvic_iser[(IRQn) >> 5UL] = (1UL << ((uint32_t)(IRQn) & 0x1FUL)); \
-    } \
-} while(0)
+#include "stm32f103_exti.h"
 
 // EXTI interrupt state tracking
 typedef struct {

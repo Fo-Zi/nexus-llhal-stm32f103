@@ -236,6 +236,18 @@ void stm32f103_uart_debug_print(const char* str);
 void stm32f103_uart_debug_print_num(const char* str, uint32_t num);
 
 /**
+ * @brief Deinitialize UART1 debug interface
+ * Resets pins to default state and disables UART
+ */
+void stm32f103_uart_debug_deinit(void);
+
+/**
+ * @brief Get default 8MHz HSI configuration
+ * @param config Output configuration structure
+ */
+void stm32f103_get_default_8mhz_hsi_config(stm32f103_clock_config_t *config);
+
+/**
  * @brief Get current system clock frequency from hardware registers
  * @return System clock frequency in Hz
  */
@@ -275,5 +287,76 @@ int stm32f103_get_clock_frequencies(stm32f103_clock_frequencies_t *frequencies);
  * @return 0 on success, negative on detection error
  */
 int stm32f103_detect_clock_frequencies(void);
+
+/*==============================================================================
+ * Clock Status and Utility Functions
+ *============================================================================*/
+
+/**
+ * @brief Check if PLL is ready and locked
+ * @return true if PLL is ready, false otherwise
+ */
+bool stm32f103_is_pll_ready(void);
+
+/**
+ * @brief Check if HSE is ready and stable
+ * @return true if HSE is ready, false otherwise
+ */
+bool stm32f103_is_hse_ready(void);
+
+/**
+ * @brief Check if HSI is ready and stable
+ * @return true if HSI is ready, false otherwise
+ */
+bool stm32f103_is_hsi_ready(void);
+
+/**
+ * @brief Get the current active system clock source
+ * @return Current clock source enumeration
+ */
+stm32f103_clock_source_t stm32f103_get_current_clock_source(void);
+
+/*==============================================================================
+ * Peripheral Management Utilities
+ *============================================================================*/
+
+/**
+ * @brief Enable peripheral clock
+ * @param rcc_register_offset Offset from RCC_BASE to the enable register
+ * @param enable_bit Bit mask for the peripheral
+ * @return 0 on success
+ */
+int stm32f103_enable_peripheral_clock(uint32_t rcc_register_offset, uint32_t enable_bit);
+
+/**
+ * @brief Disable peripheral clock
+ * @param rcc_register_offset Offset from RCC_BASE to the enable register
+ * @param enable_bit Bit mask for the peripheral
+ * @return 0 on success
+ */
+int stm32f103_disable_peripheral_clock(uint32_t rcc_register_offset, uint32_t enable_bit);
+
+/**
+ * @brief Perform system reset
+ * This function does not return
+ */
+void stm32f103_system_reset(void);
+
+/**
+ * @brief Calculate UART BRR value for given clock and baudrate
+ * @param peripheral_clock_hz Peripheral clock frequency in Hz
+ * @param baudrate Desired baudrate
+ * @return BRR register value
+ */
+uint32_t stm32f103_calculate_uart_brr(uint32_t peripheral_clock_hz, uint32_t baudrate);
+
+/**
+ * @brief Configure individual GPIO pin
+ * @param gpio_base GPIO port base address
+ * @param pin Pin number (0-15)
+ * @param mode GPIO mode (0-3)
+ * @param cnf GPIO configuration (0-3)
+ */
+void stm32f103_configure_gpio_pin(uint32_t gpio_base, uint8_t pin, uint8_t mode, uint8_t cnf);
 
 #endif

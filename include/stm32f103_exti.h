@@ -2,29 +2,7 @@
 #define STM32F103_EXTI_H
 
 #include <stdint.h>
-
-// Base addresses from stm32f103_registers.h
-#ifndef APB2PERIPH_BASE
-#define APB2PERIPH_BASE       (0x40000000UL + 0x00010000UL)
-#endif
-
-// ------------------- AFIO (Alternate Function I/O) -------------------
-#define AFIO_BASE         (APB2PERIPH_BASE + 0x0000UL)
-
-// AFIO registers
-#define AFIO_EXTICR1      (*(volatile uint32_t*)(AFIO_BASE + 0x08))
-#define AFIO_EXTICR2      (*(volatile uint32_t*)(AFIO_BASE + 0x0C))
-#define AFIO_EXTICR3      (*(volatile uint32_t*)(AFIO_BASE + 0x10))
-#define AFIO_EXTICR4      (*(volatile uint32_t*)(AFIO_BASE + 0x14))
-
-// ------------------- EXTI (External Interrupt) -------------------
-#define EXTI_BASE         (APB2PERIPH_BASE + 0x0400UL)
-
-// EXTI registers
-#define EXTI_IMR          (*(volatile uint32_t*)(EXTI_BASE + 0x00))  // Interrupt mask register
-#define EXTI_RTSR         (*(volatile uint32_t*)(EXTI_BASE + 0x08))  // Rising trigger selection register
-#define EXTI_FTSR         (*(volatile uint32_t*)(EXTI_BASE + 0x0C))  // Falling trigger selection register
-#define EXTI_PR           (*(volatile uint32_t*)(EXTI_BASE + 0x14))  // Pending register
+#include "stm32f103_registers.h"
 
 // ------------------- NVIC (Nested Vector Interrupt Controller) -------------------
 

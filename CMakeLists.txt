@@ -1,10 +1,3 @@
-cmake_minimum_required(VERSION 3.16)
-
-project(nexus-llhal-stm32f103 LANGUAGES C)
-
-set(CMAKE_C_STANDARD 99)
-set(CMAKE_C_STANDARD_REQUIRED ON)
-
 # Include directories
 set(INCLUDE_DIRS
     include
@@ -45,10 +38,11 @@ target_compile_options(nexus-llhal-stm32f103 PRIVATE
 )
 
 # ARM-specific flags (uncomment when using ARM cross-compiler)
-# target_compile_options(nexus-llhal-stm32f103 PRIVATE
-#     -mcpu=cortex-m3
-#     -mthumb
-# )
+target_compile_options(nexus-llhal-stm32f103 PRIVATE
+    -mcpu=cortex-m3
+    -mthumb
+    -mfloat-abi=soft
+)
 
 # Installation
 install(TARGETS nexus-llhal-stm32f103

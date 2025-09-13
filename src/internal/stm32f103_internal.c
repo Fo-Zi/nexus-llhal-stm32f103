@@ -13,18 +13,18 @@ static uint32_t stm32f103_calculate_pll_freq(void) {
     // Read PLL configuration from RCC_CFGR
     uint32_t cfgr = RCC_CFGR;
     
-    // PLL source (bit 16)
-    bool pll_src_hse = (cfgr >> 16) & 0x1;
+    // PLL source
+    bool pll_src_hse = (cfgr & RCC_CFGR_PLLSRC);
     
-    // PLL multiplication factor (bits 21:18)
-    uint32_t pllmul = ((cfgr >> 18) & 0xF) + 2; // PLLMUL[3:0] + 2
+    // PLL multiplication factor
+    uint32_t pllmul = ((cfgr & RCC_CFGR_PLLMULL_Msk) >> RCC_CFGR_PLLMULL_Pos) + 2;
     if (pllmul > 16) pllmul = 16; // Maximum is 16
     
     uint32_t pll_input;
     if (pll_src_hse) {
-        pll_input = STM32F103_HSI_FREQ_HZ; // Assume 8MHz external crystal
-        // Check HSE prescaler (bit 17)
-        if ((cfgr >> 17) & 0x1) {
+        pll_input = 8000000; // Assume 8MHz external crystal for Blue Pill
+        // Check HSE prescaler
+        if (cfgr & RCC_CFGR_PLLXTPRE) {
             pll_input = pll_input / 2; // HSE/2 when PLLXTPRE=1
         }
     } else {
@@ -44,8 +44,8 @@ uint32_t stm32f103_get_ahb_hz(void) {
     
     uint32_t sysclk = stm32f103_get_sysclk_hz();
     
-    // Read AHB prescaler from RCC_CFGR (bits 7:4) 
-    uint32_t hpre = (RCC_CFGR >> 4) & 0xF;
+    // Read AHB prescaler from RCC_CFGR
+    uint32_t hpre = (RCC_CFGR & RCC_CFGR_HPRE_Msk) >> RCC_CFGR_HPRE_Pos;
     
     uint32_t ahb_div;
     if (hpre < 8) {
@@ -66,8 +66,8 @@ uint32_t stm32f103_get_apb1_hz(void) {
     
     uint32_t ahb_clk = stm32f103_get_ahb_hz();
     
-    // Read APB1 prescaler from RCC_CFGR (bits 10:8)
-    uint32_t ppre1 = (RCC_CFGR >> 8) & 0x7;
+    // Read APB1 prescaler from RCC_CFGR
+    uint32_t ppre1 = (RCC_CFGR & RCC_CFGR_PPRE1_Msk) >> RCC_CFGR_PPRE1_Pos;
     
     uint32_t apb1_div;
     if (ppre1 < 4) {
@@ -88,8 +88,8 @@ uint32_t stm32f103_get_apb2_hz(void) {
     
     uint32_t ahb_clk = stm32f103_get_ahb_hz();
     
-    // Read APB2 prescaler from RCC_CFGR (bits 13:11)
-    uint32_t ppre2 = (RCC_CFGR >> 11) & 0x7;
+    // Read APB2 prescaler from RCC_CFGR
+    uint32_t ppre2 = (RCC_CFGR & RCC_CFGR_PPRE2_Msk) >> RCC_CFGR_PPRE2_Pos;
     
     uint32_t apb2_div;
     if (ppre2 < 4) {
