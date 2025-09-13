@@ -213,6 +213,7 @@
 /*==============================================================================
  * SCB (System Control Block) Registers
  *============================================================================*/
+#define SCB_AIRCR             (*(volatile uint32_t*)(SCB_BASE + 0x0C))        /*!< Application Interrupt and Reset Control Register */
 #define SCB_DEMCR             (*(volatile uint32_t*)(CoreDebug_BASE + 0x0C))  /*!< Debug Exception and Monitor Control Register */
 
 /*==============================================================================

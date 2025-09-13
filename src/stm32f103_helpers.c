@@ -76,7 +76,7 @@ static int configure_hse(bool enable, bool bypass, uint32_t timeout_us) {
         } else {
             RCC_CR &= ~RCC_CR_HSEBYP;
         }
-        
+
         // Enable HSE and wait for ready
         RCC_CR |= RCC_CR_HSEON;
         return wait_for_flag_set(&RCC_CR, RCC_CR_HSERDY, timeout_us);
@@ -90,14 +90,14 @@ static int configure_hse(bool enable, bool bypass, uint32_t timeout_us) {
 static int configure_pll(const stm32f103_clock_config_t *config) {
     // Disable PLL first
     RCC_CR &= ~RCC_CR_PLLON;
-    
+
     // Wait for PLL to be disabled
     while (RCC_CR & RCC_CR_PLLRDY) { /* spin */ }
-    
+
     // Configure PLL source and parameters
     uint32_t cfgr = RCC_CFGR;
     cfgr &= ~(RCC_CFGR_PLLSRC | RCC_CFGR_PLLXTPRE | RCC_CFGR_PLLMULL_Msk);
-    
+
     if (config->clock_source == STM32F103_CLOCK_SOURCE_PLL_HSE) {
         cfgr |= RCC_CFGR_PLLSRC_HSE;
         if (config->pll_hse_div2) {
@@ -106,10 +106,10 @@ static int configure_pll(const stm32f103_clock_config_t *config) {
     } else {
         cfgr |= RCC_CFGR_PLLSRC_HSI;  // HSI/2 as PLL source
     }
-    
+
     cfgr |= get_pll_mul_value(config->pll_mul);
     RCC_CFGR = cfgr;
-    
+
     // Enable PLL and wait for ready
     RCC_CR |= RCC_CR_PLLON;
     return wait_for_flag_set(&RCC_CR, RCC_CR_PLLRDY, HSE_STARTUP_TIMEOUT);
@@ -119,29 +119,29 @@ static int configure_flash_latency(const stm32f103_clock_config_t *config) {
     uint32_t acr = FLASH_ACR;
     acr &= ~FLASH_ACR_LATENCY_Msk;
     acr |= get_flash_latency_value(config->flash_latency);
-    
+
     if (config->flash_prefetch_enable) {
         acr |= FLASH_ACR_PRFTBE;
     } else {
         acr &= ~FLASH_ACR_PRFTBE;
     }
-    
+
     FLASH_ACR = acr;
     return 0;
 }
 
 static int configure_bus_prescalers(const stm32f103_clock_config_t *config) {
     uint32_t cfgr = RCC_CFGR;
-    
+
     // Clear prescaler fields
     cfgr &= ~(RCC_CFGR_HPRE_Msk | RCC_CFGR_PPRE1_Msk | RCC_CFGR_PPRE2_Msk | RCC_CFGR_ADCPRE_Msk);
-    
+
     // Set prescalers
     cfgr |= get_ahb_prescaler_value(config->ahb_prescaler) << RCC_CFGR_HPRE_Pos;
     cfgr |= get_apb_prescaler_value(config->apb1_prescaler) << RCC_CFGR_PPRE1_Pos;
     cfgr |= get_apb_prescaler_value(config->apb2_prescaler) << RCC_CFGR_PPRE2_Pos;
     cfgr |= get_adc_prescaler_value(config->adc_prescaler) << RCC_CFGR_ADCPRE_Pos;
-    
+
     // Configure USB prescaler if using PLL
     if (config->clock_source == STM32F103_CLOCK_SOURCE_PLL_HSE ||
         config->clock_source == STM32F103_CLOCK_SOURCE_PLL_HSI) {
@@ -151,7 +151,7 @@ static int configure_bus_prescalers(const stm32f103_clock_config_t *config) {
             cfgr |= RCC_CFGR_USBPRE;   // PLL/1
         }
     }
-    
+
     RCC_CFGR = cfgr;
     return 0;
 }
@@ -159,9 +159,9 @@ static int configure_bus_prescalers(const stm32f103_clock_config_t *config) {
 static int switch_system_clock(stm32f103_clock_source_t source) {
     uint32_t cfgr = RCC_CFGR;
     uint32_t target_sw, target_sws;
-    
+
     cfgr &= ~RCC_CFGR_SW_Msk;
-    
+
     switch (source) {
         case STM32F103_CLOCK_SOURCE_HSI:
             target_sw = RCC_CFGR_SW_HSI;
@@ -179,10 +179,10 @@ static int switch_system_clock(stm32f103_clock_source_t source) {
         default:
             return -4; // Invalid clock source
     }
-    
+
     cfgr |= target_sw;
     RCC_CFGR = cfgr;
-    
+
     // Wait for system clock switch
     return wait_for_flag_match(&RCC_CFGR, RCC_CFGR_SWS_Msk, target_sws, HSE_STARTUP_TIMEOUT);
 }
@@ -202,18 +202,18 @@ static int configure_systick(const stm32f103_clock_config_t *config, uint32_t sy
         SYSTICK_CSR &= ~SYSTICK_CSR_ENABLE;
         return 0;
     }
-    
+
     // Calculate reload value
     uint32_t reload = (sysclk_hz / config->systick_freq_hz) - 1;
     if (reload > 0xFFFFFF) {
         return -5; // SysTick reload value too large
     }
-    
+
     // Configure SysTick
     SYSTICK_RVR = reload;
     SYSTICK_CVR = 0; // Clear current value
     SYSTICK_CSR = SYSTICK_CSR_CLKSOURCE | SYSTICK_CSR_ENABLE;
-    
+
     return 0;
 }
 
@@ -324,107 +324,107 @@ int stm32f103_clock_init(const stm32f103_clock_config_t *config,
     if (!config) {
         return -1; // Invalid configuration
     }
-    
+
     // Validate configuration first
     stm32f103_clock_frequencies_t expected_freq;
     int validation_result = stm32f103_validate_clock_config(config, &expected_freq);
     if (validation_result != 0) {
         return validation_result;
     }
-    
+
     // Save current system state for error recovery
     uint32_t original_cr = RCC_CR;
     uint32_t original_cfgr = RCC_CFGR;
     uint32_t original_acr = FLASH_ACR;
-    
+
     // Step 1: Enable HSI as a safe fallback
     RCC_CR |= RCC_CR_HSION;
     if (wait_for_flag_set(&RCC_CR, RCC_CR_HSIRDY, HSE_STARTUP_TIMEOUT) != 0) {
         return -1; // HSI failed to start
     }
-    
+
     // Step 2: Switch to HSI temporarily for safe configuration
     if (switch_system_clock(STM32F103_CLOCK_SOURCE_HSI) != 0) {
         return -4; // Failed to switch to HSI
     }
-    
+
     // Step 3: Configure Flash latency BEFORE increasing frequency
     if (configure_flash_latency(config) != 0) {
         goto error_recovery;
     }
-    
+
     // Step 4: Configure HSE if needed
     bool need_hse = (config->clock_source == STM32F103_CLOCK_SOURCE_HSE ||
                      config->clock_source == STM32F103_CLOCK_SOURCE_PLL_HSE);
-    
+
     if (need_hse) {
         if (configure_hse(true, config->hse_bypass, HSE_STARTUP_TIMEOUT) != 0) {
             goto error_recovery; // HSE failed to start
         }
     }
-    
+
     // Step 5: Configure bus prescalers
     if (configure_bus_prescalers(config) != 0) {
         goto error_recovery;
     }
-    
+
     // Step 6: Configure PLL if needed
     bool need_pll = (config->clock_source == STM32F103_CLOCK_SOURCE_PLL_HSI ||
                      config->clock_source == STM32F103_CLOCK_SOURCE_PLL_HSE);
-    
+
     if (need_pll) {
         if (configure_pll(config) != 0) {
             goto error_recovery; // PLL failed to start
         }
     }
-    
+
     // Step 7: Switch to final system clock
     if (switch_system_clock(config->clock_source) != 0) {
         goto error_recovery; // Failed to switch to target clock
     }
-    
+
     // Step 8: Configure Clock Security System
     if (configure_css(config->enable_css) != 0) {
         goto error_recovery;
     }
-    
+
     // Step 9: Configure SysTick
     if (configure_systick(config, expected_freq.sysclk_hz) != 0) {
         goto error_recovery;
     }
-    
+
     // Step 10: Disable HSI if not needed (power saving)
     if (config->clock_source != STM32F103_CLOCK_SOURCE_HSI &&
         config->clock_source != STM32F103_CLOCK_SOURCE_PLL_HSI) {
         RCC_CR &= ~RCC_CR_HSION;
     }
-    
+
     // Step 11: Update global frequency tracking
     g_clock_frequencies = expected_freq;
     g_sysclk_hz = expected_freq.sysclk_hz;
     g_clock_frequencies_valid = true;
-    
+
     // Step 12: Initialize DWT for accurate delays
     dwt_init();
-    
+
     // Return calculated frequencies to caller
     if (frequencies) {
         *frequencies = expected_freq;
     }
-    
+
     return 0; // Success
-    
+
 error_recovery:
     // Restore original state on error
     RCC_CR = original_cr;
     RCC_CFGR = original_cfgr;
     FLASH_ACR = original_acr;
-    
+
     // Try to ensure HSI is working
     RCC_CR |= RCC_CR_HSION;
     wait_for_flag_set(&RCC_CR, RCC_CR_HSIRDY, HSE_STARTUP_TIMEOUT);
     switch_system_clock(STM32F103_CLOCK_SOURCE_HSI);
-    
+
     return -3; // Configuration failed, system restored to safe state
 }
 
@@ -615,11 +615,19 @@ void dwt_init(void) {
 }
 
 void stm32f103_delay_us(uint32_t microseconds) {
-    uint32_t cycles = (g_sysclk_hz / 1000000U) * microseconds;
-    uint32_t start = DWT_CYCCNT;
-    while ((DWT_CYCCNT - start) < cycles) {
-        __asm__ volatile ("nop");
-    }
+    if (microseconds == 0) return;
+
+      uint32_t cycles = (uint64_t)g_sysclk_hz * microseconds / 1000000ULL;
+      uint32_t start = DWT_CYCCNT;
+
+      while ((DWT_CYCCNT - start) < cycles) {
+          __asm__ volatile ("nop");
+      }
+    // uint32_t cycles = (g_sysclk_hz / 1000000U) * microseconds;
+    // uint32_t start = DWT_CYCCNT;
+    // while ((DWT_CYCCNT - start) < cycles) {
+    //     __asm__ volatile ("nop");
+    // }
 }
 
 void stm32f103_delay_ms(uint32_t milliseconds) {
@@ -762,7 +770,7 @@ int stm32f103_uart_debug_init(void) {
 
     // Configure PA9 (TX) as alternate function push-pull, 50MHz
     stm32f103_configure_gpio_pin(GPIOA_BASE, 9, GPIO_MODE_OUTPUT_50M, GPIO_CNF_OUTPUT_AF_PUSHPULL);
-    
+
     // Configure PA10 (RX) as input floating
     stm32f103_configure_gpio_pin(GPIOA_BASE, 10, GPIO_MODE_INPUT, GPIO_CNF_INPUT_FLOATING);
 
@@ -792,33 +800,33 @@ void stm32f103_uart_debug_print_num(const char* str, uint32_t num) {
 
     stm32f103_uart_debug_print(str);
 
-    // Simple hex conversion
-    char hex_str[13];  // "0x" + 8 hex digits + "\r\n" + '\0'
-    char hex_chars[] = "0123456789ABCDEF";
+    // Convert to decimal string
+    char dec_str[12];  // Max uint32_t is 4294967295 (10 digits) + '\0'
+    int pos = 10;
+    dec_str[11] = '\0';
 
-    hex_str[0] = '0';
-    hex_str[1] = 'x';
-
-    for (int i = 7; i >= 0; i--) {
-        hex_str[2 + (7-i)] = hex_chars[(num >> (i*4)) & 0xF];
+    if (num == 0) {
+        dec_str[pos--] = '0';
+    } else {
+        while (num > 0) {
+            dec_str[pos--] = '0' + (num % 10);
+            num /= 10;
+        }
     }
-    hex_str[10] = '\r';
-    hex_str[11] = '\n';
-    hex_str[12] = '\0';
 
-    stm32f103_uart_debug_print(hex_str);
+    stm32f103_uart_debug_print(&dec_str[pos + 1]);
 }
 
 void stm32f103_uart_debug_deinit(void) {
     if (!uart_debug_initialized) return;
-    
+
     // Disable UART
     USART1_CR1 = 0;
-    
+
     // Reset GPIO pins to input floating (reset state)
     GPIO_CRH(GPIOA_BASE) &= ~(0xFF << 4); // Clear PA9 and PA10 config
     GPIO_CRH(GPIOA_BASE) |= (0x44 << 4);  // Set both to input floating
-    
+
     uart_debug_initialized = false;
 }
 
@@ -840,7 +848,7 @@ bool stm32f103_is_hsi_ready(void) {
 
 stm32f103_clock_source_t stm32f103_get_current_clock_source(void) {
     uint32_t sws = (RCC_CFGR & RCC_CFGR_SWS_Msk) >> RCC_CFGR_SWS_Pos;
-    
+
     switch (sws) {
         case 0x0: return STM32F103_CLOCK_SOURCE_HSI;
         case 0x1: return STM32F103_CLOCK_SOURCE_HSE;
@@ -853,28 +861,6 @@ stm32f103_clock_source_t stm32f103_get_current_clock_source(void) {
     }
 }
 
-int stm32f103_enable_peripheral_clock(uint32_t rcc_register_offset, uint32_t enable_bit) {
-    volatile uint32_t *rcc_reg = (volatile uint32_t *)(RCC_BASE + rcc_register_offset);
-    *rcc_reg |= enable_bit;
-    
-    // Small delay to ensure clock is stable
-    for (volatile int i = 0; i < 10; i++) { __asm("nop"); }
-    
-    return 0;
-}
-
-int stm32f103_disable_peripheral_clock(uint32_t rcc_register_offset, uint32_t enable_bit) {
-    volatile uint32_t *rcc_reg = (volatile uint32_t *)(RCC_BASE + rcc_register_offset);
-    *rcc_reg &= ~enable_bit;
-    return 0;
-}
-
-void stm32f103_system_reset(void) {
-    // Request system reset through AIRCR register
-    volatile uint32_t *AIRCR = (volatile uint32_t *)0xE000ED0C;
-    *AIRCR = (0x5FA << 16) | (1 << 2); // VECTKEY + SYSRESETREQ
-    
-    // Should not reach here, but just in case
     while (1) { __asm("nop"); }
 }
 
@@ -884,14 +870,14 @@ uint32_t stm32f103_calculate_uart_brr(uint32_t peripheral_clock_hz, uint32_t bau
 
 void stm32f103_configure_gpio_pin(uint32_t gpio_base, uint8_t pin, uint8_t mode, uint8_t cnf) {
     if (pin > 15) return; // Invalid pin
-    
-    volatile uint32_t *cr_reg = (pin < 8) ? 
+
+    volatile uint32_t *cr_reg = (pin < 8) ?
         (volatile uint32_t *)(gpio_base + 0x00) : // CRL
         (volatile uint32_t *)(gpio_base + 0x04);  // CRH
-    
+
     uint8_t shift = (pin % 8) * 4;
     uint32_t mask = 0xF << shift;
     uint32_t config = ((cnf << 2) | mode) << shift;
-    
+
     *cr_reg = (*cr_reg & ~mask) | config;
 }

@@ -7,9 +7,11 @@ set(INCLUDE_DIRS
 
 # STM32F103 sources
 set(STM32F103_SOURCES
-    src/stm32f103_helpers.c
+    src/stm32f103_clock.c
+    src/stm32f103_timing.c
+    src/stm32f103_gpio.c
+    src/stm32f103_uart.c
     src/nhal_pin_stm32f103.c
-    src/internal/stm32f103_internal.c
 )
 
 # Common sources

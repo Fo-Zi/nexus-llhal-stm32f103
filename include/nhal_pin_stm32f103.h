@@ -2,7 +2,7 @@
 #define NHAL_PIN_STM32F103_H
 
 #include "nhal_pin_types.h"
-#include "stm32f103_helpers.h"
+#include "stm32f103_gpio.h"
 
 struct nhal_pin_id {
     stm32f103_gpio_port_t port;

@@ -20,9 +20,7 @@ typedef enum {
 // NVIC Enable macro for STM32F103
 #define NVIC_EnableIRQ(IRQn)  do { \
     volatile uint32_t *nvic_iser = (volatile uint32_t*)0xE000E100UL; \
-    if ((int32_t)(IRQn) >= 0) { \
-        nvic_iser[(IRQn) >> 5UL] = (1UL << ((uint32_t)(IRQn) & 0x1FUL)); \
-    } \
+    nvic_iser[(IRQn) >> 5UL] = (1UL << ((uint32_t)(IRQn) & 0x1FUL)); \
 } while(0)
 
 #endif /* STM32F103_EXTI_H */

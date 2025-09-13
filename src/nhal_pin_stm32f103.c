@@ -4,8 +4,8 @@
 #include "nhal_pin.h"
 #include "nhal_pin_stm32f103.h"
 #include "stm32f103_registers.h"
-#include "stm32f103_helpers.h"
-#include "internal/stm32f103_internal.h"
+#include "stm32f103_gpio.h"
+#include "stm32f103_clock.h"
 
 #include "stm32f103_exti.h"
 
@@ -205,12 +205,21 @@ static void stm32f103_gpio_config_pin(uint32_t gpio_base, uint32_t pin,
         uint32_t current = GPIO_CRH(gpio_base);
         GPIO_CRH(gpio_base) = (current & ~mask) | (config << shift);
     }
+    
+    // Small delay to ensure configuration takes effect
+    for (volatile int i = 0; i < 10; i++) {
+        __asm__ volatile ("nop");
+    }
 
+    // For STM32F103, input pull-up/pull-down is controlled by ODR register
     // Set pull-up/pull-down by writing to ODR for input pins
-    if (direction == NHAL_PIN_DIR_INPUT && pull_mode == NHAL_PIN_PMODE_PULL_UP) {
-        GPIO_BSRR(gpio_base) = (1U << pin);
-    } else if (direction == NHAL_PIN_DIR_INPUT && pull_mode == NHAL_PIN_PMODE_PULL_DOWN) {
-        GPIO_BRR(gpio_base) = (1U << pin);
+    if (direction == NHAL_PIN_DIR_INPUT) {
+        if (pull_mode == NHAL_PIN_PMODE_PULL_UP) {
+            GPIO_BSRR(gpio_base) = (1U << pin);  // Set bit to enable pull-up
+        } else if (pull_mode == NHAL_PIN_PMODE_PULL_DOWN) {
+            GPIO_BRR(gpio_base) = (1U << pin);   // Clear bit to enable pull-down
+        }
+        // For floating input, don't change ODR
     }
 }
 
