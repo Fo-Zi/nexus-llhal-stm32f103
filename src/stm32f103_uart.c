@@ -1,4 +1,5 @@
 #include "stm32f103_uart.h"
+#include "stm32f103_uart_defs.h"
 #include "stm32f103_clock.h"
 #include "stm32f103_gpio.h"
 #include "stm32f103_timing.h"
@@ -10,21 +11,27 @@
  */
 
 /*==============================================================================
- * Private Variables
+ * UART Register Offset Definitions (use with base addresses from registers.h)
  *============================================================================*/
 
-static stm32f103_uart_handle_t debug_uart_handle;
-static bool debug_uart_initialized = false;
+#define USART_SR_OFFSET    0x00
+#define USART_DR_OFFSET    0x04
+#define USART_BRR_OFFSET   0x08
+#define USART_CR1_OFFSET   0x0C
+#define USART_CR2_OFFSET   0x10
+#define USART_CR3_OFFSET   0x14
+
+// Note: All base addresses and register bit definitions are taken from stm32f103_registers.h
 
 /*==============================================================================
  * Private Functions
  *============================================================================*/
 
 /**
- * @brief Get UART register base address from peripheral enum
+ * @brief Get UART register base address from peripheral ID
  */
-static uint32_t get_uart_base(stm32f103_uart_peripheral_t peripheral) {
-    switch (peripheral) {
+uint32_t stm32f103_uart_get_base_address(stm32f103_uart_id_t uart_id) {
+    switch (uart_id) {
         case STM32F103_UART_1: return USART1_BASE;
         case STM32F103_UART_2: return USART2_BASE;
         case STM32F103_UART_3: return USART3_BASE;
@@ -35,8 +42,8 @@ static uint32_t get_uart_base(stm32f103_uart_peripheral_t peripheral) {
 /**
  * @brief Enable UART peripheral clock
  */
-static int enable_uart_clock(stm32f103_uart_peripheral_t peripheral) {
-    switch (peripheral) {
+static int enable_uart_clock(stm32f103_uart_id_t uart_id) {
+    switch (uart_id) {
         case STM32F103_UART_1:
             return stm32f103_enable_peripheral_clock(RCC_APB2ENR_OFFSET, RCC_APB2ENR_USART1EN);
         case STM32F103_UART_2:
@@ -49,501 +56,280 @@ static int enable_uart_clock(stm32f103_uart_peripheral_t peripheral) {
 }
 
 /**
- * @brief Configure UART pins
+ * @brief Configure UART pins based on peripheral ID and remap setting
  */
-static int configure_uart_pins(const stm32f103_uart_config_t *config) {
+static int configure_uart_pins(stm32f103_uart_id_t uart_id, bool use_remap) {
     stm32f103_gpio_config_t gpio_config;
     
-    // Enable GPIO port clocks
-    stm32f103_gpio_enable_port_clock(config->pins.tx_port);
-    stm32f103_gpio_enable_port_clock(config->pins.rx_port);
-    
-    if (config->enable_tx) {
-        // Configure TX pin as alternate function push-pull
-        gpio_config.port = config->pins.tx_port;
-        gpio_config.pin = config->pins.tx_pin;
-        gpio_config.mode = STM32F103_GPIO_MODE_OUTPUT_50MHz;
-        gpio_config.cnf = STM32F103_GPIO_CNF_ALTFN_PUSH_PULL;
-        stm32f103_gpio_configure_pin(&gpio_config);
-    }
-    
-    if (config->enable_rx) {
-        // Configure RX pin as input floating
-        gpio_config.port = config->pins.rx_port;
-        gpio_config.pin = config->pins.rx_pin;
-        gpio_config.mode = STM32F103_GPIO_MODE_INPUT;
-        gpio_config.cnf = STM32F103_GPIO_CNF_INPUT_FLOATING;
-        stm32f103_gpio_configure_pin(&gpio_config);
-    }
-    
-    // Configure flow control pins if enabled
-    if (config->pins.use_flow_control) {
-        if (config->flow_control == STM32F103_UART_FLOWCTRL_RTS || 
-            config->flow_control == STM32F103_UART_FLOWCTRL_RTS_CTS) {
-            gpio_config.port = config->pins.rts_port;
-            gpio_config.pin = config->pins.rts_pin;
+    switch (uart_id) {
+        case STM32F103_UART_1:
+            if (use_remap) {
+                // UART1 remap: PB6(TX), PB7(RX)
+                stm32f103_gpio_enable_port_clock(STM32F103_GPIO_PORT_B);
+                
+                // TX pin: PB6 as alternate function push-pull
+                gpio_config.port = STM32F103_GPIO_PORT_B;
+                gpio_config.pin = STM32F103_GPIO_PIN_6;
+                gpio_config.mode = STM32F103_GPIO_MODE_OUTPUT_50MHz;
+                gpio_config.cnf = STM32F103_GPIO_CNF_ALTFN_PUSH_PULL;
+                stm32f103_gpio_configure_pin(&gpio_config);
+                
+                // RX pin: PB7 as input floating
+                gpio_config.pin = STM32F103_GPIO_PIN_7;
+                gpio_config.mode = STM32F103_GPIO_MODE_INPUT;
+                gpio_config.cnf = STM32F103_GPIO_CNF_INPUT_FLOATING;
+                stm32f103_gpio_configure_pin(&gpio_config);
+            } else {
+                // UART1 default: PA9(TX), PA10(RX)
+                stm32f103_gpio_enable_port_clock(STM32F103_GPIO_PORT_A);
+                
+                // TX pin: PA9 as alternate function push-pull
+                gpio_config.port = STM32F103_GPIO_PORT_A;
+                gpio_config.pin = STM32F103_GPIO_PIN_9;
+                gpio_config.mode = STM32F103_GPIO_MODE_OUTPUT_50MHz;
+                gpio_config.cnf = STM32F103_GPIO_CNF_ALTFN_PUSH_PULL;
+                stm32f103_gpio_configure_pin(&gpio_config);
+                
+                // RX pin: PA10 as input floating
+                gpio_config.pin = STM32F103_GPIO_PIN_10;
+                gpio_config.mode = STM32F103_GPIO_MODE_INPUT;
+                gpio_config.cnf = STM32F103_GPIO_CNF_INPUT_FLOATING;
+                stm32f103_gpio_configure_pin(&gpio_config);
+            }
+            break;
+            
+        case STM32F103_UART_2:
+            // UART2: PA2(TX), PA3(RX) - no remap option
+            stm32f103_gpio_enable_port_clock(STM32F103_GPIO_PORT_A);
+            
+            // TX pin: PA2 as alternate function push-pull
+            gpio_config.port = STM32F103_GPIO_PORT_A;
+            gpio_config.pin = STM32F103_GPIO_PIN_2;
             gpio_config.mode = STM32F103_GPIO_MODE_OUTPUT_50MHz;
             gpio_config.cnf = STM32F103_GPIO_CNF_ALTFN_PUSH_PULL;
             stm32f103_gpio_configure_pin(&gpio_config);
-        }
-        
-        if (config->flow_control == STM32F103_UART_FLOWCTRL_CTS || 
-            config->flow_control == STM32F103_UART_FLOWCTRL_RTS_CTS) {
-            gpio_config.port = config->pins.cts_port;
-            gpio_config.pin = config->pins.cts_pin;
+            
+            // RX pin: PA3 as input floating
+            gpio_config.pin = STM32F103_GPIO_PIN_3;
             gpio_config.mode = STM32F103_GPIO_MODE_INPUT;
             gpio_config.cnf = STM32F103_GPIO_CNF_INPUT_FLOATING;
             stm32f103_gpio_configure_pin(&gpio_config);
-        }
+            break;
+            
+        case STM32F103_UART_3:
+            if (use_remap) {
+                // UART3 remap: PC10(TX), PC11(RX)
+                stm32f103_gpio_enable_port_clock(STM32F103_GPIO_PORT_C);
+                
+                // TX pin: PC10 as alternate function push-pull
+                gpio_config.port = STM32F103_GPIO_PORT_C;
+                gpio_config.pin = STM32F103_GPIO_PIN_10;
+                gpio_config.mode = STM32F103_GPIO_MODE_OUTPUT_50MHz;
+                gpio_config.cnf = STM32F103_GPIO_CNF_ALTFN_PUSH_PULL;
+                stm32f103_gpio_configure_pin(&gpio_config);
+                
+                // RX pin: PC11 as input floating
+                gpio_config.pin = STM32F103_GPIO_PIN_11;
+                gpio_config.mode = STM32F103_GPIO_MODE_INPUT;
+                gpio_config.cnf = STM32F103_GPIO_CNF_INPUT_FLOATING;
+                stm32f103_gpio_configure_pin(&gpio_config);
+            } else {
+                // UART3 default: PB10(TX), PB11(RX)
+                stm32f103_gpio_enable_port_clock(STM32F103_GPIO_PORT_B);
+                
+                // TX pin: PB10 as alternate function push-pull
+                gpio_config.port = STM32F103_GPIO_PORT_B;
+                gpio_config.pin = STM32F103_GPIO_PIN_10;
+                gpio_config.mode = STM32F103_GPIO_MODE_OUTPUT_50MHz;
+                gpio_config.cnf = STM32F103_GPIO_CNF_ALTFN_PUSH_PULL;
+                stm32f103_gpio_configure_pin(&gpio_config);
+                
+                // RX pin: PB11 as input floating
+                gpio_config.pin = STM32F103_GPIO_PIN_11;
+                gpio_config.mode = STM32F103_GPIO_MODE_INPUT;
+                gpio_config.cnf = STM32F103_GPIO_CNF_INPUT_FLOATING;
+                stm32f103_gpio_configure_pin(&gpio_config);
+            }
+            break;
+            
+        default:
+            return -1;
     }
     
     return 0;
 }
 
 /*==============================================================================
- * Public Functions - UART Initialization
+ * NHAL-Compatible Simple UART Implementation
  *============================================================================*/
 
-int stm32f103_uart_init(stm32f103_uart_handle_t *handle, 
-                        const stm32f103_uart_config_t *config) {
-    if (!handle || !config) {
+/**
+ * @brief Initialize UART with NHAL configuration
+ */
+int stm32f103_uart_init_simple(stm32f103_uart_id_t uart_id, const struct nhal_uart_config *nhal_config) {
+    if (!nhal_config) {
         return -1;
     }
     
-    // Validate configuration
-    if (stm32f103_uart_validate_config(config) != 0) {
-        return -1;
+    // Get implementation config if provided
+    const struct nhal_uart_impl_config *impl = (const struct nhal_uart_impl_config *)nhal_config->impl_config;
+    bool use_remap = impl ? impl->use_remap : false;
+    
+    // Configure pins
+    int pin_result = configure_uart_pins(uart_id, use_remap);
+    if (pin_result != 0) {
+        return pin_result;
+    }
+    
+    // Enable UART clock
+    int clock_result = enable_uart_clock(uart_id);
+    if (clock_result != 0) {
+        return clock_result;
     }
     
     // Get UART base address
-    uint32_t base_addr = get_uart_base(config->peripheral);
-    if (base_addr == 0) {
+    uint32_t base = stm32f103_uart_get_base_address(uart_id);
+    if (base == 0) {
         return -1;
     }
     
-    // Initialize handle
-    handle->peripheral = config->peripheral;
-    handle->base_address = base_addr;
-    handle->config = *config;
-    handle->initialized = false;
-    
-    // Enable UART clock
-    if (enable_uart_clock(config->peripheral) != 0) {
-        return -2;
-    }
-    
-    // Configure pins
-    if (configure_uart_pins(config) != 0) {
-        return -3;
-    }
-    
-    // Get peripheral clock frequency
-    stm32f103_clock_frequencies_t freq;
-    if (stm32f103_get_clock_frequencies(&freq) != 0) {
-        return -4;
-    }
-    
-    uint32_t pclk_hz = (config->peripheral == STM32F103_UART_1) ? freq.pclk2_hz : freq.pclk1_hz;
-    
-    // Disable UART first
-    volatile uint32_t *cr1_reg = (volatile uint32_t *)(base_addr + 0x0C); // CR1 offset
-    *cr1_reg = 0;
-    
-    // Configure baud rate
-    volatile uint32_t *brr_reg = (volatile uint32_t *)(base_addr + 0x08); // BRR offset
-    *brr_reg = stm32f103_uart_calculate_brr(pclk_hz, config->baudrate);
-    
-    // Configure CR1 (control register 1)
+    // Configure UART parameters
     uint32_t cr1 = 0;
-    
-    if (config->enable_tx) {
-        cr1 |= USART_CR1_TE;
-    }
-    
-    if (config->enable_rx) {
-        cr1 |= USART_CR1_RE;
-    }
-    
-    // Word length
-    if (config->word_length == STM32F103_UART_WORDLEN_9B) {
-        cr1 |= USART_CR1_M;
-    }
-    
-    // Parity
-    if (config->parity != STM32F103_UART_PARITY_NONE) {
-        cr1 |= USART_CR1_PCE;
-        if (config->parity == STM32F103_UART_PARITY_ODD) {
-            cr1 |= USART_CR1_PS;
-        }
-    }
-    
-    // Interrupts
-    if (config->enable_interrupts) {
-        cr1 |= USART_CR1_RXNEIE; // RX interrupt
-    }
-    
-    // Enable UART
-    cr1 |= USART_CR1_UE;
-    *cr1_reg = cr1;
-    
-    // Configure CR2 (stop bits)
-    volatile uint32_t *cr2_reg = (volatile uint32_t *)(base_addr + 0x10); // CR2 offset
     uint32_t cr2 = 0;
-    cr2 |= (config->stop_bits << 12); // STOP bits [13:12]
-    *cr2_reg = cr2;
     
-    // Configure CR3 (flow control)
-    volatile uint32_t *cr3_reg = (volatile uint32_t *)(base_addr + 0x14); // CR3 offset
-    uint32_t cr3 = 0;
-    if (config->flow_control == STM32F103_UART_FLOWCTRL_RTS || 
-        config->flow_control == STM32F103_UART_FLOWCTRL_RTS_CTS) {
-        cr3 |= USART_CR3_RTSE;
-    }
-    if (config->flow_control == STM32F103_UART_FLOWCTRL_CTS || 
-        config->flow_control == STM32F103_UART_FLOWCTRL_RTS_CTS) {
-        cr3 |= USART_CR3_CTSE;
-    }
-    *cr3_reg = cr3;
-    
-    handle->initialized = true;
-    return 0;
-}
-
-int stm32f103_uart_deinit(stm32f103_uart_handle_t *handle) {
-    if (!handle || !handle->initialized) {
-        return -1;
+    // Configure data bits (word length)
+    switch (nhal_config->data_bits) {
+        case NHAL_UART_DATA_BITS_7:
+            // STM32F103 doesn't support 7-bit directly, would need parity for 8-bit frame
+            // For now, treat as 8-bit
+        case NHAL_UART_DATA_BITS_8:
+        default:
+            // 8-bit is default (M=0), STM32F103 supports 8 or 9 bit
+            break;
     }
     
-    // Disable UART
-    volatile uint32_t *cr1_reg = (volatile uint32_t *)(handle->base_address + 0x0C);
-    *cr1_reg = 0;
-    
-    // Reset pins to input floating (default state)
-    stm32f103_gpio_config_t gpio_config;
-    
-    if (handle->config.enable_tx) {
-        gpio_config.port = handle->config.pins.tx_port;
-        gpio_config.pin = handle->config.pins.tx_pin;
-        gpio_config.mode = STM32F103_GPIO_MODE_INPUT;
-        gpio_config.cnf = STM32F103_GPIO_CNF_INPUT_FLOATING;
-        stm32f103_gpio_configure_pin(&gpio_config);
+    // Configure parity
+    switch (nhal_config->parity) {
+        case NHAL_UART_PARITY_EVEN:
+            cr1 |= USART_CR1_PCE;  // Enable parity, even is default
+            break;
+        case NHAL_UART_PARITY_ODD:
+            cr1 |= USART_CR1_PCE | USART_CR1_PS;  // Enable parity + odd
+            break;
+        case NHAL_UART_PARITY_NONE:
+        default:
+            // No parity (default)
+            break;
     }
     
-    if (handle->config.enable_rx) {
-        gpio_config.port = handle->config.pins.rx_port;
-        gpio_config.pin = handle->config.pins.rx_pin;
-        gpio_config.mode = STM32F103_GPIO_MODE_INPUT;
-        gpio_config.cnf = STM32F103_GPIO_CNF_INPUT_FLOATING;
-        stm32f103_gpio_configure_pin(&gpio_config);
+    // Configure stop bits
+    switch (nhal_config->stop_bits) {
+        case NHAL_UART_STOP_BITS_2:
+            cr2 |= (2 << 12);  // STOP[1:0] = 10 for 2 stop bits
+            break;
+        case NHAL_UART_STOP_BITS_1:
+        default:
+            // 1 stop bit is default (STOP[1:0] = 00)
+            break;
     }
     
-    handle->initialized = false;
-    return 0;
-}
-
-int stm32f103_uart_reconfigure(stm32f103_uart_handle_t *handle,
-                               const stm32f103_uart_config_t *config) {
-    if (!handle || !config) {
-        return -1;
-    }
-    
-    // Deinitialize current configuration
-    stm32f103_uart_deinit(handle);
-    
-    // Initialize with new configuration
-    return stm32f103_uart_init(handle, config);
-}
-
-/*==============================================================================
- * Public Functions - Predefined Configurations
- *============================================================================*/
-
-void stm32f103_uart_get_default_debug_config(stm32f103_uart_config_t *config) {
-    stm32f103_uart_get_uart1_pa9_pa10_config(config, 115200);
-}
-
-void stm32f103_uart_get_uart1_pa9_pa10_config(stm32f103_uart_config_t *config, uint32_t baudrate) {
-    if (!config) return;
-    
-    config->peripheral = STM32F103_UART_1;
-    config->pins.tx_port = STM32F103_GPIO_PORT_A;
-    config->pins.tx_pin = STM32F103_GPIO_PIN_9;
-    config->pins.rx_port = STM32F103_GPIO_PORT_A;
-    config->pins.rx_pin = STM32F103_GPIO_PIN_10;
-    config->pins.use_flow_control = false;
-    config->baudrate = baudrate;
-    config->word_length = STM32F103_UART_WORDLEN_8B;
-    config->stop_bits = STM32F103_UART_STOPBITS_1;
-    config->parity = STM32F103_UART_PARITY_NONE;
-    config->flow_control = STM32F103_UART_FLOWCTRL_NONE;
-    config->enable_tx = true;
-    config->enable_rx = true;
-    config->enable_interrupts = false;
-}
-
-void stm32f103_uart_get_uart1_pb6_pb7_config(stm32f103_uart_config_t *config, uint32_t baudrate) {
-    if (!config) return;
-    
-    config->peripheral = STM32F103_UART_1;
-    config->pins.tx_port = STM32F103_GPIO_PORT_B;
-    config->pins.tx_pin = STM32F103_GPIO_PIN_6;
-    config->pins.rx_port = STM32F103_GPIO_PORT_B;
-    config->pins.rx_pin = STM32F103_GPIO_PIN_7;
-    config->pins.use_flow_control = false;
-    config->baudrate = baudrate;
-    config->word_length = STM32F103_UART_WORDLEN_8B;
-    config->stop_bits = STM32F103_UART_STOPBITS_1;
-    config->parity = STM32F103_UART_PARITY_NONE;
-    config->flow_control = STM32F103_UART_FLOWCTRL_NONE;
-    config->enable_tx = true;
-    config->enable_rx = true;
-    config->enable_interrupts = false;
-}
-
-void stm32f103_uart_get_uart2_pa2_pa3_config(stm32f103_uart_config_t *config, uint32_t baudrate) {
-    if (!config) return;
-    
-    config->peripheral = STM32F103_UART_2;
-    config->pins.tx_port = STM32F103_GPIO_PORT_A;
-    config->pins.tx_pin = STM32F103_GPIO_PIN_2;
-    config->pins.rx_port = STM32F103_GPIO_PORT_A;
-    config->pins.rx_pin = STM32F103_GPIO_PIN_3;
-    config->pins.use_flow_control = false;
-    config->baudrate = baudrate;
-    config->word_length = STM32F103_UART_WORDLEN_8B;
-    config->stop_bits = STM32F103_UART_STOPBITS_1;
-    config->parity = STM32F103_UART_PARITY_NONE;
-    config->flow_control = STM32F103_UART_FLOWCTRL_NONE;
-    config->enable_tx = true;
-    config->enable_rx = true;
-    config->enable_interrupts = false;
-}
-
-void stm32f103_uart_get_uart3_pb10_pb11_config(stm32f103_uart_config_t *config, uint32_t baudrate) {
-    if (!config) return;
-    
-    config->peripheral = STM32F103_UART_3;
-    config->pins.tx_port = STM32F103_GPIO_PORT_B;
-    config->pins.tx_pin = STM32F103_GPIO_PIN_10;
-    config->pins.rx_port = STM32F103_GPIO_PORT_B;
-    config->pins.rx_pin = STM32F103_GPIO_PIN_11;
-    config->pins.use_flow_control = false;
-    config->baudrate = baudrate;
-    config->word_length = STM32F103_UART_WORDLEN_8B;
-    config->stop_bits = STM32F103_UART_STOPBITS_1;
-    config->parity = STM32F103_UART_PARITY_NONE;
-    config->flow_control = STM32F103_UART_FLOWCTRL_NONE;
-    config->enable_tx = true;
-    config->enable_rx = true;
-    config->enable_interrupts = false;
-}
-
-/*==============================================================================
- * Public Functions - UART Transmission
- *============================================================================*/
-
-int stm32f103_uart_send_byte(stm32f103_uart_handle_t *handle, uint8_t byte) {
-    if (!handle || !handle->initialized) {
-        return -1;
-    }
-    
-    volatile uint32_t *sr_reg = (volatile uint32_t *)(handle->base_address + 0x00); // SR offset
-    volatile uint32_t *dr_reg = (volatile uint32_t *)(handle->base_address + 0x04); // DR offset
-    
-    // Wait for TXE (Transmit Data Register Empty)
-    while ((*sr_reg & USART_SR_TXE) == 0);
-    
-    // Send byte
-    *dr_reg = byte;
-    
-    return 0;
-}
-
-int stm32f103_uart_send_data(stm32f103_uart_handle_t *handle, 
-                             const uint8_t *data, uint32_t length) {
-    if (!handle || !data || length == 0) {
-        return -1;
-    }
-    
-    for (uint32_t i = 0; i < length; i++) {
-        if (stm32f103_uart_send_byte(handle, data[i]) != 0) {
-            return i; // Return number of bytes sent before error
-        }
-    }
-    
-    return length;
-}
-
-int stm32f103_uart_send_string(stm32f103_uart_handle_t *handle, const char *str) {
-    if (!handle || !str) {
-        return -1;
-    }
-    
-    int count = 0;
-    while (*str) {
-        if (stm32f103_uart_send_byte(handle, *str++) != 0) {
-            return count; // Return number of bytes sent before error
-        }
-        count++;
-    }
-    
-    return count;
-}
-
-int stm32f103_uart_send_string_num(stm32f103_uart_handle_t *handle, 
-                                   const char *str, uint32_t num) {
-    if (!handle) {
-        return -1;
-    }
-    
-    int bytes_sent = 0;
-    
-    // Send string part
-    if (str) {
-        int str_bytes = stm32f103_uart_send_string(handle, str);
-        if (str_bytes < 0) return str_bytes;
-        bytes_sent += str_bytes;
-    }
-    
-    // Convert number to string and send
-    char num_str[12]; // Max uint32_t is 10 digits + sign + null
-    int pos = 10;
-    num_str[11] = '\0';
-    
-    if (num == 0) {
-        num_str[pos--] = '0';
+    // Calculate and set baud rate
+    uint32_t peripheral_clock;
+    if (uart_id == STM32F103_UART_1) {
+        peripheral_clock = stm32f103_get_pclk2_hz();
     } else {
-        while (num > 0) {
-            num_str[pos--] = '0' + (num % 10);
-            num /= 10;
-        }
+        peripheral_clock = stm32f103_get_pclk1_hz();
     }
     
-    int num_bytes = stm32f103_uart_send_string(handle, &num_str[pos + 1]);
-    if (num_bytes < 0) return num_bytes;
-    bytes_sent += num_bytes;
+    uint32_t brr = peripheral_clock / nhal_config->baudrate;
+    *(volatile uint32_t *)(base + USART_BRR_OFFSET) = brr;
     
-    return bytes_sent;
-}
-
-/*==============================================================================
- * Public Functions - UART Reception
- *============================================================================*/
-
-int stm32f103_uart_receive_byte(stm32f103_uart_handle_t *handle, 
-                                uint8_t *byte, uint32_t timeout_ms) {
-    if (!handle || !handle->initialized || !byte) {
-        return -1;
-    }
+    // Write CR2 register
+    *(volatile uint32_t *)(base + USART_CR2_OFFSET) = cr2;
     
-    volatile uint32_t *sr_reg = (volatile uint32_t *)(handle->base_address + 0x00); // SR offset
-    volatile uint32_t *dr_reg = (volatile uint32_t *)(handle->base_address + 0x04); // DR offset
-    
-    uint32_t start_time = 0;
-    if (timeout_ms > 0) {
-        start_time = stm32f103_get_tick();
-    }
-    
-    // Wait for RXNE (Receive Data Register Not Empty)
-    while ((*sr_reg & USART_SR_RXNE) == 0) {
-        if (timeout_ms > 0 && stm32f103_timeout_occurred(start_time, timeout_ms)) {
-            return -2; // Timeout
-        }
-    }
-    
-    // Read byte
-    *byte = (uint8_t)(*dr_reg & 0xFF);
+    // Enable UART, TX, RX
+    cr1 |= USART_CR1_UE | USART_CR1_TE | USART_CR1_RE;
+    *(volatile uint32_t *)(base + USART_CR1_OFFSET) = cr1;
     
     return 0;
 }
 
-bool stm32f103_uart_data_available(stm32f103_uart_handle_t *handle) {
-    if (!handle || !handle->initialized) {
+/*==============================================================================
+ * NHAL Helper Functions for Simple Operations
+ *============================================================================*/
+
+/**
+ * @brief Send a single byte with timeout
+ */
+int stm32f103_uart_send_byte_timeout(stm32f103_uart_id_t uart_id, uint8_t data, uint32_t timeout_ms) {
+    uint32_t base = stm32f103_uart_get_base_address(uart_id);
+    if (base == 0) {
+        return -1;
+    }
+    
+    uint32_t start_tick = stm32f103_get_tick();
+    
+    // Wait for TX register to be empty
+    while (!(*(volatile uint32_t *)(base + USART_SR_OFFSET) & USART_SR_TXE)) {
+        if (stm32f103_timeout_occurred(start_tick, timeout_ms)) {
+            return -2;  // Timeout
+        }
+    }
+    
+    // Send data
+    *(volatile uint32_t *)(base + USART_DR_OFFSET) = data;
+    
+    return 0;
+}
+
+/**
+ * @brief Receive a single byte with timeout
+ */
+int stm32f103_uart_receive_byte_timeout(stm32f103_uart_id_t uart_id, uint8_t *data, uint32_t timeout_ms) {
+    if (!data) {
+        return -1;
+    }
+    
+    uint32_t base = stm32f103_uart_get_base_address(uart_id);
+    if (base == 0) {
+        return -1;
+    }
+    
+    uint32_t start_tick = stm32f103_get_tick();
+    
+    // Wait for data to be available
+    while (!(*(volatile uint32_t *)(base + USART_SR_OFFSET) & USART_SR_RXNE)) {
+        if (stm32f103_timeout_occurred(start_tick, timeout_ms)) {
+            return -2;  // Timeout
+        }
+    }
+    
+    // Read data
+    *data = (uint8_t)(*(volatile uint32_t *)(base + USART_DR_OFFSET) & 0xFF);
+    
+    return 0;
+}
+
+/**
+ * @brief Check if UART TX is ready
+ */
+bool stm32f103_uart_is_tx_ready(stm32f103_uart_id_t uart_id) {
+    uint32_t base = stm32f103_uart_get_base_address(uart_id);
+    if (base == 0) {
         return false;
     }
     
-    volatile uint32_t *sr_reg = (volatile uint32_t *)(handle->base_address + 0x00); // SR offset
-    return (*sr_reg & USART_SR_RXNE) != 0;
+    return (*(volatile uint32_t *)(base + USART_SR_OFFSET) & USART_SR_TXE) != 0;
 }
 
-/*==============================================================================
- * Public Functions - Utility Functions
- *============================================================================*/
-
-uint32_t stm32f103_uart_calculate_brr(uint32_t peripheral_clock_hz, uint32_t baudrate) {
-    return (peripheral_clock_hz + (baudrate / 2)) / baudrate; // Round to nearest
-}
-
-int stm32f103_uart_validate_config(const stm32f103_uart_config_t *config) {
-    if (!config) {
-        return -1;
+/**
+ * @brief Check if UART has received data
+ */
+bool stm32f103_uart_is_rx_data_available(stm32f103_uart_id_t uart_id) {
+    uint32_t base = stm32f103_uart_get_base_address(uart_id);
+    if (base == 0) {
+        return false;
     }
     
-    // Validate peripheral
-    if (config->peripheral < STM32F103_UART_1 || config->peripheral > STM32F103_UART_3) {
-        return -1;
-    }
-    
-    // Validate pins
-    if (!stm32f103_gpio_is_valid_port(config->pins.tx_port) ||
-        !stm32f103_gpio_is_valid_pin(config->pins.tx_pin) ||
-        !stm32f103_gpio_is_valid_port(config->pins.rx_port) ||
-        !stm32f103_gpio_is_valid_pin(config->pins.rx_pin)) {
-        return -1;
-    }
-    
-    // Validate baudrate (reasonable range)
-    if (config->baudrate < 300 || config->baudrate > 4500000) {
-        return -1;
-    }
-    
-    // At least one direction must be enabled
-    if (!config->enable_tx && !config->enable_rx) {
-        return -1;
-    }
-    
-    return 0;
-}
-
-uint32_t stm32f103_uart_get_base_address(stm32f103_uart_peripheral_t peripheral) {
-    return get_uart_base(peripheral);
-}
-
-/*==============================================================================
- * Public Functions - Debug UART Convenience Functions
- *============================================================================*/
-
-int stm32f103_uart_debug_init(void) {
-    if (debug_uart_initialized) {
-        return 0; // Already initialized
-    }
-    
-    stm32f103_uart_config_t config;
-    stm32f103_uart_get_default_debug_config(&config);
-    
-    int result = stm32f103_uart_init(&debug_uart_handle, &config);
-    if (result == 0) {
-        debug_uart_initialized = true;
-    }
-    
-    return result;
-}
-
-void stm32f103_uart_debug_print(const char *str) {
-    if (debug_uart_initialized) {
-        stm32f103_uart_send_string(&debug_uart_handle, str);
-    }
-}
-
-void stm32f103_uart_debug_print_num(const char *str, uint32_t num) {
-    if (debug_uart_initialized) {
-        stm32f103_uart_send_string_num(&debug_uart_handle, str, num);
-    }
-}
-
-void stm32f103_uart_debug_deinit(void) {
-    if (debug_uart_initialized) {
-        stm32f103_uart_deinit(&debug_uart_handle);
-        debug_uart_initialized = false;
-    }
+    return (*(volatile uint32_t *)(base + USART_SR_OFFSET) & USART_SR_RXNE) != 0;
 }

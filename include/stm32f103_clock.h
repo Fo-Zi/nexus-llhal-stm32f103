@@ -228,6 +228,18 @@ int stm32f103_detect_clock_frequencies(void);
  */
 uint32_t stm32f103_get_sysclk_hz(void);
 
+/**
+ * @brief Get current APB1 peripheral clock frequency
+ * @return APB1 clock frequency in Hz
+ */
+uint32_t stm32f103_get_pclk1_hz(void);
+
+/**
+ * @brief Get current APB2 peripheral clock frequency  
+ * @return APB2 clock frequency in Hz
+ */
+uint32_t stm32f103_get_pclk2_hz(void);
+
 /*==============================================================================
  * Clock Status and Validation
  *============================================================================*/

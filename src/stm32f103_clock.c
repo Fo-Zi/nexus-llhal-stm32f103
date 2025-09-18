@@ -669,3 +669,19 @@ void stm32f103_system_reset(void) {
         __asm volatile ("nop");
     }
 }
+
+uint32_t stm32f103_get_pclk1_hz(void) {
+    stm32f103_clock_frequencies_t freq;
+    if (stm32f103_get_clock_frequencies(&freq) == 0) {
+        return freq.pclk1_hz;
+    }
+    return 36000000; // Default fallback (72MHz / 2)
+}
+
+uint32_t stm32f103_get_pclk2_hz(void) {
+    stm32f103_clock_frequencies_t freq;
+    if (stm32f103_get_clock_frequencies(&freq) == 0) {
+        return freq.pclk2_hz;
+    }
+    return 72000000; // Default fallback
+}

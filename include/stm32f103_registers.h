@@ -500,6 +500,124 @@
 #define STM32F103_MAX_APB2_HZ                72000000UL /*!< Maximum APB2 Clock frequency in Hz */
 
 /*==============================================================================
+ * I2C Register Offsets and Bit Definitions
+ *============================================================================*/
+#define I2C_CR1_OFFSET        0x00  /*!< I2C Control register 1 offset */
+#define I2C_CR2_OFFSET        0x04  /*!< I2C Control register 2 offset */
+#define I2C_OAR1_OFFSET       0x08  /*!< I2C Own address register 1 offset */
+#define I2C_OAR2_OFFSET       0x0C  /*!< I2C Own address register 2 offset */
+#define I2C_DR_OFFSET         0x10  /*!< I2C Data register offset */
+#define I2C_SR1_OFFSET        0x14  /*!< I2C Status register 1 offset */
+#define I2C_SR2_OFFSET        0x18  /*!< I2C Status register 2 offset */
+#define I2C_CCR_OFFSET        0x1C  /*!< I2C Clock control register offset */
+#define I2C_TRISE_OFFSET      0x20  /*!< I2C TRISE register offset */
+
+/* I2C_CR1 register bits */
+#define I2C_CR1_PE            (1U << 0)   /*!< Peripheral Enable */
+#define I2C_CR1_SMBUS         (1U << 1)   /*!< SMBus Mode */
+#define I2C_CR1_SMBTYPE       (1U << 3)   /*!< SMBus Type */
+#define I2C_CR1_ENARP         (1U << 4)   /*!< ARP Enable */
+#define I2C_CR1_ENPEC         (1U << 5)   /*!< PEC Enable */
+#define I2C_CR1_ENGC          (1U << 6)   /*!< General Call Enable */
+#define I2C_CR1_NOSTRETCH     (1U << 7)   /*!< Clock Stretching Disable */
+#define I2C_CR1_START         (1U << 8)   /*!< Start Generation */
+#define I2C_CR1_STOP          (1U << 9)   /*!< Stop Generation */
+#define I2C_CR1_ACK           (1U << 10)  /*!< Acknowledge Enable */
+#define I2C_CR1_POS           (1U << 11)  /*!< Acknowledge/PEC Position */
+#define I2C_CR1_PEC           (1U << 12)  /*!< Packet Error Checking */
+#define I2C_CR1_ALERT         (1U << 13)  /*!< SMBus Alert */
+#define I2C_CR1_SWRST         (1U << 15)  /*!< Software Reset */
+
+/* I2C_CR2 register bits */
+#define I2C_CR2_FREQ_Pos      0
+#define I2C_CR2_FREQ_Msk      (0x3FU << I2C_CR2_FREQ_Pos) /*!< Peripheral Clock Frequency */
+#define I2C_CR2_FREQ_MASK     I2C_CR2_FREQ_Msk
+#define I2C_CR2_ITERREN       (1U << 8)   /*!< Error Interrupt Enable */
+#define I2C_CR2_ITEVTEN       (1U << 9)   /*!< Event Interrupt Enable */
+#define I2C_CR2_ITBUFEN       (1U << 10)  /*!< Buffer Interrupt Enable */
+#define I2C_CR2_DMAEN         (1U << 11)  /*!< DMA Requests Enable */
+#define I2C_CR2_LAST          (1U << 12)  /*!< DMA Last Transfer */
+
+/* I2C_SR1 register bits */
+#define I2C_SR1_SB            (1U << 0)   /*!< Start Bit */
+#define I2C_SR1_ADDR          (1U << 1)   /*!< Address sent/matched */
+#define I2C_SR1_BTF           (1U << 2)   /*!< Byte Transfer Finished */
+#define I2C_SR1_ADD10         (1U << 3)   /*!< 10-bit header sent */
+#define I2C_SR1_STOPF         (1U << 4)   /*!< Stop detection */
+#define I2C_SR1_RXNE          (1U << 6)   /*!< Data Register not Empty */
+#define I2C_SR1_TXE           (1U << 7)   /*!< Data Register Empty */
+#define I2C_SR1_BERR          (1U << 8)   /*!< Bus Error */
+#define I2C_SR1_ARLO          (1U << 9)   /*!< Arbitration Lost */
+#define I2C_SR1_AF            (1U << 10)  /*!< Acknowledge Failure */
+#define I2C_SR1_OVR           (1U << 11)  /*!< Overrun/Underrun */
+#define I2C_SR1_PECERR        (1U << 12)  /*!< PEC Error */
+#define I2C_SR1_TIMEOUT       (1U << 14)  /*!< Timeout Error */
+#define I2C_SR1_SMBALERT      (1U << 15)  /*!< SMBus Alert */
+
+/* I2C_SR2 register bits */
+#define I2C_SR2_MSL           (1U << 0)   /*!< Master/Slave */
+#define I2C_SR2_BUSY          (1U << 1)   /*!< Bus Busy */
+#define I2C_SR2_TRA           (1U << 2)   /*!< Transmitter/Receiver */
+#define I2C_SR2_GENCALL       (1U << 4)   /*!< General Call Address */
+#define I2C_SR2_SMBDEFAULT    (1U << 5)   /*!< SMBus Device Default Address */
+#define I2C_SR2_SMBHOST       (1U << 6)   /*!< SMBus Host Header */
+#define I2C_SR2_DUALF         (1U << 7)   /*!< Dual Flag */
+
+/* I2C_CCR register bits */
+#define I2C_CCR_CCR_Pos       0
+#define I2C_CCR_CCR_Msk       (0xFFFU << I2C_CCR_CCR_Pos) /*!< Clock Control Register */
+#define I2C_CCR_DUTY          (1U << 14)  /*!< Fast Mode Duty Cycle */
+#define I2C_CCR_FS            (1U << 15)  /*!< I2C Master Mode Selection */
+
+/*==============================================================================
+ * SPI Register Offsets
+ *============================================================================*/
+
+/* SPI register offsets */
+#define SPI_CR1_OFFSET        0x00  /*!< SPI Control register 1 offset */
+#define SPI_CR2_OFFSET        0x04  /*!< SPI Control register 2 offset */
+#define SPI_SR_OFFSET         0x08  /*!< SPI Status register offset */
+#define SPI_DR_OFFSET         0x0C  /*!< SPI Data register offset */
+#define SPI_CRCPR_OFFSET      0x10  /*!< SPI CRC polynomial register offset */
+#define SPI_RXCRCR_OFFSET     0x14  /*!< SPI RX CRC register offset */
+#define SPI_TXCRCR_OFFSET     0x18  /*!< SPI TX CRC register offset */
+
+/* SPI_CR1 register bits */
+#define SPI_CR1_CPHA          (1U << 0)   /*!< Clock Phase */
+#define SPI_CR1_CPOL          (1U << 1)   /*!< Clock Polarity */
+#define SPI_CR1_MSTR          (1U << 2)   /*!< Master Selection */
+#define SPI_CR1_BR_Pos        3
+#define SPI_CR1_BR_Msk        (0x7U << SPI_CR1_BR_Pos) /*!< Baud Rate Control */
+#define SPI_CR1_SPE           (1U << 6)   /*!< SPI Enable */
+#define SPI_CR1_LSBFIRST      (1U << 7)   /*!< Frame Format */
+#define SPI_CR1_SSI           (1U << 8)   /*!< Internal Slave Select */
+#define SPI_CR1_SSM           (1U << 9)   /*!< Software Slave Management */
+#define SPI_CR1_RXONLY        (1U << 10)  /*!< Receive Only */
+#define SPI_CR1_DFF           (1U << 11)  /*!< Data Frame Format */
+#define SPI_CR1_CRCNEXT       (1U << 12)  /*!< CRC Transfer Next */
+#define SPI_CR1_CRCEN         (1U << 13)  /*!< Hardware CRC Calculation Enable */
+#define SPI_CR1_BIDIOE        (1U << 14)  /*!< Output Enable in Bidirectional Mode */
+#define SPI_CR1_BIDIMODE      (1U << 15)  /*!< Bidirectional Data Mode Enable */
+
+/* SPI_CR2 register bits */
+#define SPI_CR2_RXDMAEN       (1U << 0)   /*!< RX Buffer DMA Enable */
+#define SPI_CR2_TXDMAEN       (1U << 1)   /*!< TX Buffer DMA Enable */
+#define SPI_CR2_SSOE          (1U << 2)   /*!< SS Output Enable */
+#define SPI_CR2_ERRIE         (1U << 5)   /*!< Error Interrupt Enable */
+#define SPI_CR2_RXNEIE        (1U << 6)   /*!< RX Buffer Not Empty Interrupt Enable */
+#define SPI_CR2_TXEIE         (1U << 7)   /*!< TX Buffer Empty Interrupt Enable */
+
+/* SPI_SR register bits */
+#define SPI_SR_RXNE           (1U << 0)   /*!< Receive Buffer Not Empty */
+#define SPI_SR_TXE            (1U << 1)   /*!< Transmit Buffer Empty */
+#define SPI_SR_CHSIDE         (1U << 2)   /*!< Channel Side (I2S mode) */
+#define SPI_SR_UDR            (1U << 3)   /*!< Underrun Flag (I2S mode) */
+#define SPI_SR_CRCERR         (1U << 4)   /*!< CRC Error Flag */
+#define SPI_SR_MODF           (1U << 5)   /*!< Mode Fault */
+#define SPI_SR_OVR            (1U << 6)   /*!< Overrun Flag */
+#define SPI_SR_BSY            (1U << 7)   /*!< Busy Flag */
+
+/*==============================================================================
  * RCC Register Offsets (for peripheral clock control)
  *============================================================================*/
 #define RCC_APB2ENR_OFFSET    0x18  /*!< APB2 peripheral clock enable register offset */

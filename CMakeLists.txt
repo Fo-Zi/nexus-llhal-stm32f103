@@ -12,6 +12,9 @@ set(STM32F103_SOURCES
     src/stm32f103_gpio.c
     src/stm32f103_uart.c
     src/nhal_pin_stm32f103.c
+    src/nhal_uart_stm32f103.c
+    src/nhal_i2c_master_stm32f103.c
+    src/nhal_spi_master_stm32f103.c
 )
 
 # Common sources
