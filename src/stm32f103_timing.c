@@ -1,6 +1,7 @@
 #include "stm32f103_timing.h"
 #include "stm32f103_clock.h"
 #include "stm32f103_registers.h"
+#include <stdint.h>
 
 /**
  * @file stm32f103_timing.c
@@ -13,38 +14,47 @@
 
 static bool timing_initialized = false;
 static volatile uint32_t systick_counter = 0;
+static uint32_t stored_sysclk_hz = 8000000; // Default to 8MHz HSI
 
 /*==============================================================================
  * Private Functions
  *============================================================================*/
+ // SysTick interrupt handler - called every 1ms
+ void SysTick_Handler(void) {
+     systick_counter += 1000; // Increment by 1ms (1000 microseconds)
+ }
 
-
+ void stm32f103_systick_init(void);
 
 /*==============================================================================
  * Public Functions - Initialization
  *============================================================================*/
 
 int stm32f103_timing_init(void) {
-    // Initialize DWT for cycle counting
-    stm32f103_dwt_init();
-    
-    // Get current system frequency to configure SysTick
+    // Get current system frequency and store it locally
     stm32f103_clock_frequencies_t freq;
     int result = stm32f103_get_clock_frequencies(&freq);
     if (result != 0) {
         return result;
     }
-    
-    // Configure SysTick for 1ms interrupts
-    uint32_t reload = (freq.sysclk_hz / 1000) - 1; // 1ms tick
-    if (reload > 0xFFFFFF) {
-        return -1; // Reload value too large
-    }
-    
-    SYSTICK_RVR = reload;
-    SYSTICK_CVR = 0; // Clear current value
-    SYSTICK_CSR = SYSTICK_CSR_CLKSOURCE | SYSTICK_CSR_TICKINT | SYSTICK_CSR_ENABLE;
-    
+
+    // Store frequency for delay functions
+    stored_sysclk_hz = freq.sysclk_hz;
+
+    // Initialize DWT for cycle counting
+    stm32f103_dwt_init();
+    stm32f103_systick_init();
+
+    // // Configure SysTick for 1ms interrupts
+    // uint32_t reload = (freq.sysclk_hz / 1000) - 1; // 1ms tick
+    // if (reload > 0xFFFFFF) {
+    //     return -1; // Reload value too large
+    // }
+
+    // SYSTICK_RVR = reload;
+    // SYSTICK_CVR = 0; // Clear current value
+    // SYSTICK_CSR = SYSTICK_CSR_CLKSOURCE | SYSTICK_CSR_TICKINT | SYSTICK_CSR_ENABLE;
+
     timing_initialized = true;
     return 0;
 }
@@ -60,22 +70,8 @@ void stm32f103_dwt_init(void) {
  *============================================================================*/
 
 void stm32f103_delay_us(uint32_t microseconds) {
-    if (microseconds == 0) return;
-    
-    // Get current system clock frequency
-    stm32f103_clock_frequencies_t freq;
-    int result = stm32f103_get_clock_frequencies(&freq);
-    if (result != 0) {
-        // Fallback: assume 72MHz
-        freq.sysclk_hz = 72000000;
-    }
-    
-    // Calculate required cycles for the delay
-    uint64_t cycles_64 = (uint64_t)freq.sysclk_hz * microseconds;
-    uint32_t cycles = (uint32_t)(cycles_64 / 1000000ULL);
-    
+    uint32_t cycles = (stored_sysclk_hz * microseconds) / 1000000;
     uint32_t start = DWT_CYCCNT;
-    
     while ((DWT_CYCCNT - start) < cycles) {
         __asm__ volatile ("nop");
     }
@@ -89,14 +85,13 @@ void stm32f103_delay_ms(uint32_t milliseconds) {
         }
         return;
     }
-    
+
     // Use SysTick-based delay
     uint32_t start_tick = systick_counter;
-    while ((systick_counter - start_tick) < milliseconds) {
-        __asm__ volatile ("wfi"); // Wait for interrupt (power saving)
+    while ((systick_counter - start_tick) < (milliseconds * 1000)) {
+        __asm__ volatile ("wfi"); // Wait for interrupt
     }
 }
-
 /*==============================================================================
  * Public Functions - Time Measurement
  *============================================================================*/
@@ -112,7 +107,7 @@ uint32_t stm32f103_cycles_to_us(uint32_t cycles) {
         // Fallback: assume 72MHz
         freq.sysclk_hz = 72000000;
     }
-    
+
     return (uint64_t)cycles * 1000000ULL / freq.sysclk_hz;
 }
 
@@ -123,13 +118,24 @@ uint32_t stm32f103_us_to_cycles(uint32_t microseconds) {
         // Fallback: assume 72MHz
         freq.sysclk_hz = 72000000;
     }
-    
+
     return (uint64_t)freq.sysclk_hz * microseconds / 1000000ULL;
 }
 
 /*==============================================================================
  * Public Functions - SysTick Functions
  *============================================================================*/
+
+ // Initialize SysTick for timestamp tracking (should be called during system init)
+ void stm32f103_systick_init(void) {
+     uint32_t sysclk = stm32f103_get_sysclk_hz();
+
+     // Configure SysTick for 1ms interrupts
+     SYSTICK_RVR = (sysclk / 1000) - 1;
+     SYSTICK_CVR = 0;
+     SYSTICK_CSR = SYSTICK_CSR_ENABLE | SYSTICK_CSR_CLKSOURCE | SYSTICK_CSR_TICKINT;
+ }
+
 
 uint32_t stm32f103_get_tick(void) {
     return systick_counter;
