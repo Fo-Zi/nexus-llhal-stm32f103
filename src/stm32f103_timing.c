@@ -45,16 +45,6 @@ int stm32f103_timing_init(void) {
     stm32f103_dwt_init();
     stm32f103_systick_init();
 
-    // // Configure SysTick for 1ms interrupts
-    // uint32_t reload = (freq.sysclk_hz / 1000) - 1; // 1ms tick
-    // if (reload > 0xFFFFFF) {
-    //     return -1; // Reload value too large
-    // }
-
-    // SYSTICK_RVR = reload;
-    // SYSTICK_CVR = 0; // Clear current value
-    // SYSTICK_CSR = SYSTICK_CSR_CLKSOURCE | SYSTICK_CSR_TICKINT | SYSTICK_CSR_ENABLE;
-
     timing_initialized = true;
     return 0;
 }
@@ -70,9 +60,10 @@ void stm32f103_dwt_init(void) {
  *============================================================================*/
 
 void stm32f103_delay_us(uint32_t microseconds) {
-    uint32_t cycles = (stored_sysclk_hz * microseconds) / 1000000;
+    // Use 64-bit arithmetic to prevent integer overflow
+    uint64_t cycles = ((uint64_t)stored_sysclk_hz * microseconds) / 1000000ULL;
     uint32_t start = DWT_CYCCNT;
-    while ((DWT_CYCCNT - start) < cycles) {
+    while ((DWT_CYCCNT - start) < (uint32_t)cycles) {
         __asm__ volatile ("nop");
     }
 }
@@ -108,7 +99,7 @@ uint32_t stm32f103_cycles_to_us(uint32_t cycles) {
         freq.sysclk_hz = 72000000;
     }
 
-    return (uint64_t)cycles * 1000000ULL / freq.sysclk_hz;
+    return (uint32_t)(((uint64_t)cycles * 1000000ULL) / freq.sysclk_hz);
 }
 
 uint32_t stm32f103_us_to_cycles(uint32_t microseconds) {
@@ -119,7 +110,7 @@ uint32_t stm32f103_us_to_cycles(uint32_t microseconds) {
         freq.sysclk_hz = 72000000;
     }
 
-    return (uint64_t)freq.sysclk_hz * microseconds / 1000000ULL;
+    return (uint32_t)(((uint64_t)freq.sysclk_hz * microseconds) / 1000000ULL);
 }
 
 /*==============================================================================
@@ -128,10 +119,8 @@ uint32_t stm32f103_us_to_cycles(uint32_t microseconds) {
 
  // Initialize SysTick for timestamp tracking (should be called during system init)
  void stm32f103_systick_init(void) {
-     uint32_t sysclk = stm32f103_get_sysclk_hz();
-
      // Configure SysTick for 1ms interrupts
-     SYSTICK_RVR = (sysclk / 1000) - 1;
+     SYSTICK_RVR = (stored_sysclk_hz / 1000) - 1;
      SYSTICK_CVR = 0;
      SYSTICK_CSR = SYSTICK_CSR_ENABLE | SYSTICK_CSR_CLKSOURCE | SYSTICK_CSR_TICKINT;
  }
