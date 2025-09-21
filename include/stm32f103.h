@@ -8,5 +8,7 @@
 #include "stm32f103_timing.h"
 #include "stm32f103_gpio.h"
 #include "stm32f103_uart.h"
+#include "stm32f103_spi.h"
+#include "stm32f103_i2c.h"
 
 #endif /* STM32F103_HELPERS_H */
