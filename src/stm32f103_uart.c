@@ -279,6 +279,13 @@ int stm32f103_uart_send_byte_timeout(stm32f103_uart_id_t uart_id, uint8_t data, 
     // Send data
     *(volatile uint32_t *)(base + USART_DR_OFFSET) = data;
     
+    // Wait for transmission complete
+    while (!(*(volatile uint32_t *)(base + USART_SR_OFFSET) & USART_SR_TC)) {
+        if (stm32f103_timeout_occurred(start_tick, timeout_ms)) {
+            return -3;  // Timeout waiting for transmission complete
+        }
+    }
+    
     return 0;
 }
 
