@@ -610,6 +610,44 @@ uint32_t stm32f103_get_sysclk_hz(void) {
     }
 }
 
+uint32_t stm32f103_get_pclk1_hz(void) {
+    if (g_clock_frequencies_valid) {
+        return g_clock_frequencies.pclk1_hz;
+    }
+    
+    // Calculate PCLK1 from SYSCLK and APB1 prescaler
+    uint32_t sysclk = stm32f103_get_sysclk_hz();
+    uint32_t cfgr = RCC_CFGR;
+    uint32_t ppre1 = (cfgr & RCC_CFGR_PPRE1_Msk) >> RCC_CFGR_PPRE1_Pos;
+    
+    // APB1 prescaler values: 0xx = /1, 100 = /2, 101 = /4, 110 = /8, 111 = /16
+    uint32_t divisor = 1;
+    if (ppre1 >= 4) {
+        divisor = 1 << (ppre1 - 3); // 2^(ppre1-3)
+    }
+    
+    return sysclk / divisor;
+}
+
+uint32_t stm32f103_get_pclk2_hz(void) {
+    if (g_clock_frequencies_valid) {
+        return g_clock_frequencies.pclk2_hz;
+    }
+    
+    // Calculate PCLK2 from SYSCLK and APB2 prescaler  
+    uint32_t sysclk = stm32f103_get_sysclk_hz();
+    uint32_t cfgr = RCC_CFGR;
+    uint32_t ppre2 = (cfgr & RCC_CFGR_PPRE2_Msk) >> RCC_CFGR_PPRE2_Pos;
+    
+    // APB2 prescaler values: 0xx = /1, 100 = /2, 101 = /4, 110 = /8, 111 = /16
+    uint32_t divisor = 1;
+    if (ppre2 >= 4) {
+        divisor = 1 << (ppre2 - 3); // 2^(ppre2-3)
+    }
+    
+    return sysclk / divisor;
+}
+
 /*==============================================================================
  * Public Functions - Clock Status and Validation
  *============================================================================*/
