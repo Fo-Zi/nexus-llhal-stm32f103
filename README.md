@@ -1,7 +1,7 @@
 # STM32F103 Low-Level Hardware Abstraction Layer
 
 ![GitHub License](https://img.shields.io/github/license/Fo-Zi/nexus-llhal-stm32f103?color=lightgrey)
-![Status](https://img.shields.io/badge/status-development-yellow)
+![GitHub Release](https://img.shields.io/github/v/release/Fo-Zi/nexus-llhal-stm32f103?color=brightgreen)
 [![Dependency](https://img.shields.io/badge/depends%20on-nexus--hal--interface%20v0.6.0-orange)](https://github.com/Fo-Zi/nexus-hal-interface/tree/v0.6.0)
 
 A register-level hardware abstraction layer for STM32F103 microcontrollers that implements the NHAL interface while providing direct hardware access. Part of the [Nexus Ecosystem](https://github.com/Fo-Zi/nexus-embedded-ecosystem).
@@ -13,15 +13,34 @@ This implementation uses a dual-layer approach that bridges register-level hardw
 **Direct Hardware Layer**: Register-level functions for immediate hardware control
 **NHAL Interface Layer**: Context-based abstraction for portability across MCUs
 
-```
-Application Code
-├── NHAL Interface (portable)          ├── Direct Hardware Access (performance)
-│   └── nhal_pin_set_state()          │   └── stm32f103_gpio_set_pin()
-└── Platform Layer (logical → physical pin mapping)
-    └── STM32F103 Register Layer (stm32f103_gpio.c)
-        └── Hardware Registers
-```
+```mermaid
+graph TB
 
+  subgraph APP["Application Code"]
+    MW["Middleware\n(drivers, services)"]
+  end
+
+  subgraph NHAL["NHAL Interface Layer"]
+    NFn["nhal_pin_set_state()"]
+  end
+
+  subgraph PL["Platform Abstraction"]
+    MAP["Logical → Physical Mapping\n(contexts, init)"]
+  end
+
+  subgraph HW["Direct Hardware Layer"]
+    HFn["stm32f103_gpio_set_pin()"]
+    REG["STM32F103\nRegisters"]
+  end
+
+  %% relationships (network, not strict hierarchy)
+  MW --> NFn
+  MW --> MAP
+  NFn --> HFn
+  NFn --> MAP
+  MAP --> HFn
+  HFn --> REG
+```
 ### Key Design Decisions
 
 **Context-Based Resource Management**
